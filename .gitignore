@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+# --- Proyecto: secretos ---
+.streamlit/secrets.toml
+*.key
+
+# --- Proyecto: dataset (vive en Drive, no en GitHub) ---
+data/
+dataset/
+CarDD*/
+recortes/
+*.zip
