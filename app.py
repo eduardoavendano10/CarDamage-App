@@ -3,39 +3,112 @@ import gradio as gr
 
 
 # ==========================================
-# 1. FUNCIONES
+# 1. CONFIGURACIÓN DE CLASES
 # ==========================================
 
-def verificar_imagen(imagen):
+# Las seis categorías originales de CarDD.
+
+CLASES = [
+    "dent",
+    "scratch",
+    "crack",
+    "glass shatter",
+    "lamp broken",
+    "tire flat"
+]
+
+
+# ==========================================
+# 2. PREDICCIÓN SIMULADA
+# ==========================================
+
+# Estos valores son ficticios.
+# NO provienen de EfficientNet-B0.
+# Solo permiten probar la interfaz.
+
+PROBABILIDADES_DEMO = {
+    "dent": 0.15,
+    "scratch": 0.55,
+    "crack": 0.10,
+    "glass shatter": 0.08,
+    "lamp broken": 0.07,
+    "tire flat": 0.05
+}
+
+
+def simular_prediccion(imagen):
     """
-    Comprueba si el usuario cargó una fotografía.
-    Posteriormente conectaremos aquí el modelo.
+    Simula la clasificación de una fotografía.
+
+    Posteriormente reemplazaremos esta lógica
+    por la inferencia real de EfficientNet-B0.
     """
 
+    # Validar que existe una imagen.
     if imagen is None:
-        return "Debes cargar una fotografía antes de analizar."
+
+        return (
+            "Debes cargar una fotografía antes de analizar.",
+            "",
+            "",
+            None
+        )
+
+    # Obtener las puntuaciones simuladas.
+    probabilidades = PROBABILIDADES_DEMO.copy()
+
+    # Identificar la clase con mayor puntuación.
+    clase_predicha = max(
+        probabilidades,
+        key=probabilidades.get
+    )
+
+    # Obtener la puntuación de esa clase.
+    confianza = probabilidades[clase_predicha]
+
+    # Mensaje de demostración.
+    estado = (
+        "SIMULACIÓN: análisis completado. "
+        "Estos resultados no corresponden "
+        "a una predicción real del modelo."
+    )
 
     return (
-        "Imagen recibida correctamente. "
-        "El modelo de inteligencia artificial aún no está conectado."
+        estado,
+        clase_predicha,
+        f"{confianza:.1%}",
+        probabilidades
     )
 
 
 # ==========================================
-# 2. INTERFAZ WEB
+# 3. CONSTRUCCIÓN DE LA INTERFAZ
 # ==========================================
 
 with gr.Blocks(title="CarDamage AI") as app:
 
-    # Encabezado principal
+    # --------------------------------------
+    # ENCABEZADO
+    # --------------------------------------
+
     gr.Markdown("# CarDamage AI")
 
     gr.Markdown(
-        "Sistema de clasificación de daños visibles en vehículos."
+        "Sistema de clasificación de daños "
+        "visibles en vehículos."
+    )
+
+    gr.Markdown(
+        "**Versión 1.3 — Modo demostración**"
+    )
+
+    gr.Markdown(
+        "Actualmente utilizamos resultados simulados. "
+        "El modelo EfficientNet-B0 todavía no está conectado."
     )
 
     # --------------------------------------
-    # SECCIÓN 1: CARGAR FOTOGRAFÍA
+    # SECCIÓN 1: CARGAR IMAGEN
     # --------------------------------------
 
     gr.Markdown("### 1. Cargar fotografía")
@@ -48,11 +121,12 @@ with gr.Blocks(title="CarDamage AI") as app:
     )
 
     gr.Markdown(
-        "Sube una fotografía cercana de una zona dañada del vehículo."
+        "Sube una fotografía cercana de una "
+        "zona dañada del vehículo."
     )
 
     # --------------------------------------
-    # SECCIÓN 2: ANALIZAR FOTOGRAFÍA
+    # SECCIÓN 2: ANALIZAR
     # --------------------------------------
 
     gr.Markdown("### 2. Analizar fotografía")
@@ -62,16 +136,60 @@ with gr.Blocks(title="CarDamage AI") as app:
         variant="primary"
     )
 
-    resultado = gr.Textbox(
+    estado = gr.Textbox(
         label="Estado del análisis",
         interactive=False
     )
 
-    # Conectar el botón con la función
+    # --------------------------------------
+    # SECCIÓN 3: RESULTADOS
+    # --------------------------------------
+
+    gr.Markdown("### 3. Resultado de clasificación")
+
+    gr.Markdown(
+        "**ATENCIÓN: los siguientes resultados "
+        "son simulados, no predicciones reales.**"
+    )
+
+    with gr.Row():
+
+        clase_resultado = gr.Textbox(
+            label="Clase predicha (simulación)",
+            interactive=False
+        )
+
+        confianza_resultado = gr.Textbox(
+            label="Confianza simulada",
+            interactive=False
+        )
+
+    # --------------------------------------
+    # SECCIÓN 4: PUNTUACIONES
+    # --------------------------------------
+
+    gr.Markdown(
+        "### 4. Puntuaciones de las seis clases"
+    )
+
+    probabilidades_resultado = gr.Label(
+        label="Distribución simulada",
+        num_top_classes=6
+    )
+
+    # --------------------------------------
+    # CONEXIÓN DEL BOTÓN
+    # --------------------------------------
+
     boton_analizar.click(
-        fn=verificar_imagen,
+        fn=simular_prediccion,
         inputs=imagen,
-        outputs=resultado
+        outputs=[
+            estado,
+            clase_resultado,
+            confianza_resultado,
+            probabilidades_resultado
+        ]
     )
 
     # --------------------------------------
@@ -81,17 +199,26 @@ with gr.Blocks(title="CarDamage AI") as app:
     gr.Markdown("---")
 
     gr.Markdown(
-        "**Versión 1.2 — Prototipo inicial**\n\n"
-        "Actualmente la aplicación permite cargar fotografías "
-        "y verificar que fueron recibidas correctamente.\n\n"
-        "La clasificación mediante EfficientNet-B0 "
-        "y las recomendaciones generadas por IA "
-        "se incorporarán en las próximas etapas."
+        "### Información del proyecto"
+    )
+
+    gr.Markdown(
+        "**Dataset:** CarDD — Car Damage Detection\n\n"
+        "**Modelo principal:** EfficientNet-B0 "
+        "(pendiente de integración)\n\n"
+        "**Categorías:** dent, scratch, crack, "
+        "glass shatter, lamp broken y tire flat.\n\n"
+        "**Limitación:** el sistema supone que "
+        "la fotografía contiene una región "
+        "con daño visible.\n\n"
+        "**Advertencia:** las puntuaciones actuales "
+        "son ficticias y no deben utilizarse "
+        "para diagnosticar daños."
     )
 
 
 # ==========================================
-# 3. EJECUTAR APLICACIÓN
+# 4. EJECUTAR APLICACIÓN
 # ==========================================
 
 if __name__ == "__main__":
