@@ -1,2 +1,5 @@
 
 gradio==6.30.0
+torch==2.14.1
+torchvision==0.29.1
+Pillow>=10.0,<13.0
