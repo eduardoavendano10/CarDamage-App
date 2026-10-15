@@ -1,4 +1,10 @@
 
+
+from pathlib import Path
+from functools import lru_cache
+
+from inferencia import cargar_modelo, predecir_imagen
+
 import gradio as gr
 
 
@@ -79,6 +85,71 @@ def simular_prediccion(imagen):
         f"{confianza:.1%}",
         probabilidades
     )
+
+
+# ==========================================
+# CONEXIÓN GRADIO + EFFICIENTNET-B0
+# ==========================================
+
+CARPETA_MODELO = Path(__file__).resolve().parent / "model"
+
+
+@lru_cache(maxsize=1)
+def obtener_modelo_real():
+    """Carga una sola vez el modelo entrenado."""
+
+    return cargar_modelo(
+        CARPETA_MODELO / "model.pt",
+        CARPETA_MODELO / "classes.json"
+    )
+
+
+def analizar_fotografia(imagen):
+
+    if imagen is None:
+        return simular_prediccion(imagen)
+
+    ruta_pesos = CARPETA_MODELO / "model.pt"
+    ruta_clases = CARPETA_MODELO / "classes.json"
+
+    # Todavía no recibimos el modelo de Martín.
+    if not ruta_pesos.exists() and not ruta_clases.exists():
+        return simular_prediccion(imagen)
+
+    # No permitir una instalación incompleta.
+    if not ruta_pesos.is_file() or not ruta_clases.is_file():
+        return (
+            "ERROR: faltan archivos del modelo entrenado.",
+            "",
+            "",
+            None
+        )
+
+    try:
+        modelo, clases = obtener_modelo_real()
+
+        resultado = predecir_imagen(
+            imagen,
+            modelo,
+            clases
+        )
+
+        return (
+            "Análisis completado con EfficientNet-B0.",
+            resultado["clase"],
+            f'{resultado["confianza"]:.1%}',
+            resultado["probabilidades"]
+        )
+
+    except Exception as error:
+        print("Error de inferencia:", error)
+
+        return (
+            "ERROR: no se pudo ejecutar EfficientNet-B0.",
+            "",
+            "",
+            None
+        )
 
 
 # ==========================================
@@ -182,7 +253,7 @@ with gr.Blocks(title="CarDamage AI") as app:
     # --------------------------------------
 
     boton_analizar.click(
-        fn=simular_prediccion,
+        fn=analizar_fotografia,
         inputs=imagen,
         outputs=[
             estado,
