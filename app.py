@@ -1,36 +1,37 @@
 
+# ==========================================================
+# CARDAMAGE AI - VERSION 1.4
+# Clasificacion de danos visibles en vehiculos
+# Gradio + EfficientNet-B0
+# ==========================================================
+
+import gradio as gr
 
 from pathlib import Path
 from functools import lru_cache
 
 from inferencia import cargar_modelo, predecir_imagen
 
-import gradio as gr
+
+# ==========================================================
+# 1. CONFIGURACION
+# ==========================================================
+
+VERSION = "1.4"
+
+BASE_DIR = Path(__file__).resolve().parent
+CARPETA_MODELO = BASE_DIR / "model"
+
+RUTA_PESOS = CARPETA_MODELO / "model.pt"
+RUTA_CLASES = CARPETA_MODELO / "classes.json"
 
 
-# ==========================================
-# 1. CONFIGURACIÓN DE CLASES
-# ==========================================
-
-# Las seis categorías originales de CarDD.
-
-CLASES = [
-    "dent",
-    "scratch",
-    "crack",
-    "glass shatter",
-    "lamp broken",
-    "tire flat"
-]
-
-
-# ==========================================
-# 2. PREDICCIÓN SIMULADA
-# ==========================================
+# ==========================================================
+# 2. DATOS DE DEMOSTRACION
+# ==========================================================
 
 # Estos valores son ficticios.
-# NO provienen de EfficientNet-B0.
-# Solo permiten probar la interfaz.
+# Solo se utilizan cuando no existe un modelo instalado.
 
 PROBABILIDADES_DEMO = {
     "dent": 0.15,
@@ -44,39 +45,30 @@ PROBABILIDADES_DEMO = {
 
 def simular_prediccion(imagen):
     """
-    Simula la clasificación de una fotografía.
-
-    Posteriormente reemplazaremos esta lógica
-    por la inferencia real de EfficientNet-B0.
+    Genera resultados ficticios para probar la interfaz.
+    NO representa una prediccion de EfficientNet-B0.
     """
 
-    # Validar que existe una imagen.
     if imagen is None:
-
         return (
-            "Debes cargar una fotografía antes de analizar.",
+            "Debes cargar una fotografia antes de analizar.",
             "",
             "",
             None
         )
 
-    # Obtener las puntuaciones simuladas.
     probabilidades = PROBABILIDADES_DEMO.copy()
 
-    # Identificar la clase con mayor puntuación.
     clase_predicha = max(
         probabilidades,
         key=probabilidades.get
     )
 
-    # Obtener la puntuación de esa clase.
     confianza = probabilidades[clase_predicha]
 
-    # Mensaje de demostración.
     estado = (
-        "SIMULACIÓN: análisis completado. "
-        "Estos resultados no corresponden "
-        "a una predicción real del modelo."
+        "SIMULACION: analisis completado. "
+        "Los resultados son ficticios."
     )
 
     return (
@@ -87,45 +79,133 @@ def simular_prediccion(imagen):
     )
 
 
-# ==========================================
-# CONEXIÓN GRADIO + EFFICIENTNET-B0
-# ==========================================
+# ==========================================================
+# 3. DETECCION DEL MODELO
+# ==========================================================
 
-CARPETA_MODELO = Path(__file__).resolve().parent / "model"
+def verificar_archivos_modelo():
+    """
+    Comprueba si existen los archivos necesarios.
 
+    Devuelve:
+    - "disponible"
+    - "incompleto"
+    - "simulacion"
+    """
+
+    existe_modelo = RUTA_PESOS.is_file()
+    existen_clases = RUTA_CLASES.is_file()
+
+    if existe_modelo and existen_clases:
+        return "disponible"
+
+    if existe_modelo or existen_clases:
+        return "incompleto"
+
+    return "simulacion"
+
+
+# ==========================================================
+# 4. CARGAR EFFICIENTNET-B0
+# ==========================================================
 
 @lru_cache(maxsize=1)
 def obtener_modelo_real():
-    """Carga una sola vez el modelo entrenado."""
+    """
+    Carga EfficientNet-B0 y sus clases.
 
-    return cargar_modelo(
-        CARPETA_MODELO / "model.pt",
-        CARPETA_MODELO / "classes.json"
+    El modelo se carga una sola vez.
+    """
+
+    modelo, clases = cargar_modelo(
+        ruta_pesos=RUTA_PESOS,
+        ruta_clases=RUTA_CLASES
     )
 
+    return modelo, clases
+
+
+# ==========================================================
+# 5. FUNCION PRINCIPAL DE ANALISIS
+# ==========================================================
 
 def analizar_fotografia(imagen):
+    """
+    Selecciona automaticamente entre:
+
+    1. Simulacion si no existe un modelo.
+    2. Inferencia EfficientNet si hay pesos.
+    3. Error si la instalacion es incompleta.
+
+    Devuelve cinco resultados para Gradio.
+    """
+
+    # ------------------------------------------------------
+    # VALIDACION DE IMAGEN
+    # ------------------------------------------------------
 
     if imagen is None:
-        return simular_prediccion(imagen)
 
-    ruta_pesos = CARPETA_MODELO / "model.pt"
-    ruta_clases = CARPETA_MODELO / "classes.json"
-
-    # Todavía no recibimos el modelo de Martín.
-    if not ruta_pesos.exists() and not ruta_clases.exists():
-        return simular_prediccion(imagen)
-
-    # No permitir una instalación incompleta.
-    if not ruta_pesos.is_file() or not ruta_clases.is_file():
         return (
-            "ERROR: faltan archivos del modelo entrenado.",
+            "Debes cargar una fotografia antes de analizar.",
             "",
             "",
-            None
+            None,
+            "**Estado:** esperando una fotografia."
         )
 
+    # ------------------------------------------------------
+    # IDENTIFICAR MODO
+    # ------------------------------------------------------
+
+    modo = verificar_archivos_modelo()
+
+    # ------------------------------------------------------
+    # MODO SIMULACION
+    # ------------------------------------------------------
+
+    if modo == "simulacion":
+
+        estado, clase, confianza, probabilidades = (
+            simular_prediccion(imagen)
+        )
+
+        informacion = (
+            "**Modo activo: SIMULACION.** "
+            "La clasificacion y las puntuaciones "
+            "son ficticias. No dependen del contenido "
+            "de la fotografia."
+        )
+
+        return (
+            estado,
+            clase,
+            confianza,
+            probabilidades,
+            informacion
+        )
+
+    # ------------------------------------------------------
+    # MODELO INCOMPLETO
+    # ------------------------------------------------------
+
+    if modo == "incompleto":
+
+        return (
+            "ERROR: instalacion incompleta del modelo.",
+            "",
+            "",
+            None,
+            "**Modelo incompleto:** deben existir ambos "
+            "archivos: model/model.pt y model/classes.json."
+        )
+
+    # ------------------------------------------------------
+    # INFERENCIA EFFICIENTNET-B0
+    # ------------------------------------------------------
+
     try:
+
         modelo, clases = obtener_modelo_real()
 
         resultado = predecir_imagen(
@@ -134,163 +214,195 @@ def analizar_fotografia(imagen):
             clases
         )
 
+        clase = resultado["clase"]
+        confianza = resultado["confianza"]
+        probabilidades = resultado["probabilidades"]
+
+        estado = (
+            "Analisis completado utilizando "
+            "EfficientNet-B0 con pesos cargados."
+        )
+
+        informacion = (
+            "**Modo activo: EFFICIENTNET-B0.** "
+            "Se utilizo el modelo cargado desde "
+            "model/model.pt. La confianza corresponde "
+            "a una puntuacion Softmax y no equivale "
+            "a la precision global del modelo."
+        )
+
         return (
-            "Análisis completado con EfficientNet-B0.",
-            resultado["clase"],
-            f'{resultado["confianza"]:.1%}',
-            resultado["probabilidades"]
+            estado,
+            clase,
+            f"{confianza:.1%}",
+            probabilidades,
+            informacion
         )
 
     except Exception as error:
-        print("Error de inferencia:", error)
+
+        print("ERROR DE INFERENCIA:", repr(error))
 
         return (
             "ERROR: no se pudo ejecutar EfficientNet-B0.",
             "",
             "",
-            None
+            None,
+            "**Error del modelo:** revisa la terminal "
+            "de VS Code. No se muestran resultados "
+            "simulados cuando falla un modelo instalado."
         )
 
 
-# ==========================================
-# 3. CONSTRUCCIÓN DE LA INTERFAZ
-# ==========================================
+# ==========================================================
+# 6. CONSTRUCCION DE LA INTERFAZ
+# ==========================================================
 
 with gr.Blocks(title="CarDamage AI") as app:
 
-    # --------------------------------------
+    # ------------------------------------------------------
     # ENCABEZADO
-    # --------------------------------------
+    # ------------------------------------------------------
 
     gr.Markdown("# CarDamage AI")
 
     gr.Markdown(
-        "Sistema de clasificación de daños "
-        "visibles en vehículos."
+        "Sistema de clasificacion de danos "
+        "visibles en vehiculos."
     )
 
     gr.Markdown(
-        "**Versión 1.3 — Modo demostración**"
+        f"**Version {VERSION} — EfficientNet-B0 + Gradio**"
     )
 
     gr.Markdown(
-        "Actualmente utilizamos resultados simulados. "
-        "El modelo EfficientNet-B0 todavía no está conectado."
+        "La aplicacion utiliza resultados simulados "
+        "mientras no esten disponibles los archivos "
+        "del modelo entrenado. El modo utilizado "
+        "se indica en cada analisis."
     )
 
-    # --------------------------------------
-    # SECCIÓN 1: CARGAR IMAGEN
-    # --------------------------------------
+    # ------------------------------------------------------
+    # SECCION 1 - IMAGEN
+    # ------------------------------------------------------
 
-    gr.Markdown("### 1. Cargar fotografía")
+    gr.Markdown("### 1. Cargar fotografia")
 
     imagen = gr.Image(
-        label="Fotografía del daño",
+        label="Fotografia del dano",
         type="pil",
         sources=["upload"],
         height=350
     )
 
     gr.Markdown(
-        "Sube una fotografía cercana de una "
-        "zona dañada del vehículo."
+        "Sube una fotografia cercana de una zona "
+        "con dano visible. El modelo clasifica "
+        "la region danada, no detecta automaticamente "
+        "danos en una fotografia completa del vehiculo."
     )
 
-    # --------------------------------------
-    # SECCIÓN 2: ANALIZAR
-    # --------------------------------------
+    # ------------------------------------------------------
+    # SECCION 2 - ANALISIS
+    # ------------------------------------------------------
 
-    gr.Markdown("### 2. Analizar fotografía")
+    gr.Markdown("### 2. Analizar fotografia")
 
     boton_analizar = gr.Button(
-        "Analizar daño",
+        "Analizar dano",
         variant="primary"
     )
 
     estado = gr.Textbox(
-        label="Estado del análisis",
+        label="Estado del analisis",
         interactive=False
     )
 
-    # --------------------------------------
-    # SECCIÓN 3: RESULTADOS
-    # --------------------------------------
+    # ------------------------------------------------------
+    # SECCION 3 - RESULTADOS
+    # ------------------------------------------------------
 
-    gr.Markdown("### 3. Resultado de clasificación")
+    gr.Markdown("### 3. Resultado de clasificacion")
 
-    gr.Markdown(
-        "**ATENCIÓN: los siguientes resultados "
-        "son simulados, no predicciones reales.**"
+    informacion_modo = gr.Markdown(
+        "**Estado:** esperando una fotografia."
     )
 
     with gr.Row():
 
         clase_resultado = gr.Textbox(
-            label="Clase predicha (simulación)",
+            label="Clase predicha",
             interactive=False
         )
 
         confianza_resultado = gr.Textbox(
-            label="Confianza simulada",
+            label="Confianza de la prediccion",
             interactive=False
         )
 
-    # --------------------------------------
-    # SECCIÓN 4: PUNTUACIONES
-    # --------------------------------------
+    # ------------------------------------------------------
+    # SECCION 4 - PUNTUACIONES
+    # ------------------------------------------------------
 
     gr.Markdown(
-        "### 4. Puntuaciones de las seis clases"
+        "### 4. Puntuaciones por categoria"
     )
 
     probabilidades_resultado = gr.Label(
-        label="Distribución simulada",
+        label="Distribucion de puntuaciones",
         num_top_classes=6
     )
 
-    # --------------------------------------
-    # CONEXIÓN DEL BOTÓN
-    # --------------------------------------
+    # ------------------------------------------------------
+    # CONEXION DEL BOTON
+    # ------------------------------------------------------
 
     boton_analizar.click(
         fn=analizar_fotografia,
-        inputs=imagen,
+        inputs=[imagen],
         outputs=[
             estado,
             clase_resultado,
             confianza_resultado,
-            probabilidades_resultado
+            probabilidades_resultado,
+            informacion_modo
         ]
     )
 
-    # --------------------------------------
-    # INFORMACIÓN DEL PROYECTO
-    # --------------------------------------
+    # ------------------------------------------------------
+    # INFORMACION DEL PROYECTO
+    # ------------------------------------------------------
 
     gr.Markdown("---")
 
-    gr.Markdown(
-        "### Información del proyecto"
-    )
+    gr.Markdown("### Informacion del proyecto")
 
     gr.Markdown(
-        "**Dataset:** CarDD — Car Damage Detection\n\n"
-        "**Modelo principal:** EfficientNet-B0 "
-        "(pendiente de integración)\n\n"
-        "**Categorías:** dent, scratch, crack, "
-        "glass shatter, lamp broken y tire flat.\n\n"
-        "**Limitación:** el sistema supone que "
-        "la fotografía contiene una región "
-        "con daño visible.\n\n"
-        "**Advertencia:** las puntuaciones actuales "
-        "son ficticias y no deben utilizarse "
-        "para diagnosticar daños."
+        "**Proyecto:** CarDamage AI\n\n"
+        "**Dataset:** CarDD - Car Damage Detection\n\n"
+        "**Modelo principal:** EfficientNet-B0\n\n"
+        "**Arquitectura:** PyTorch / Torchvision\n\n"
+        "**Interfaz:** Gradio\n\n"
+        "**Categorias iniciales:** dent, scratch, "
+        "crack, glass shatter, lamp broken y tire flat.\n\n"
+        "**Clases definitivas:** se leen desde "
+        "classes.json cuando hay un modelo instalado.\n\n"
+        "**Limitacion:** se requiere una fotografia "
+        "de una region con dano visible. No existe "
+        "una categoria sin dano.\n\n"
+        "**Interpretacion:** las puntuaciones Softmax "
+        "no garantizan que la prediccion sea correcta. "
+        "La precision global del modelo debe evaluarse "
+        "separadamente sobre el conjunto Test.\n\n"
+        "**Advertencia:** el sistema es una herramienta "
+        "academica de clasificacion visual, no un "
+        "diagnostico mecanico definitivo."
     )
 
 
-# ==========================================
-# 4. EJECUTAR APLICACIÓN
-# ==========================================
+# ==========================================================
+# 7. EJECUTAR
+# ==========================================================
 
 if __name__ == "__main__":
     app.launch()
