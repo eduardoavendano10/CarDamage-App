@@ -1,0 +1,47 @@
+{
+  "arquitectura": "torchvision.models.efficientnet_b0(weights=None); classifier[1]=nn.Linear(1280, 6)",
+  "formato_model_pt": "state_dict",
+  "clases_en_orden": [
+    "crack",
+    "dent",
+    "glass_shatter",
+    "lamp_broken",
+    "scratch",
+    "tire_flat"
+  ],
+  "input": {
+    "resize": [
+      224,
+      224
+    ],
+    "normalize_mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "normalize_std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "color": "RGB",
+    "augmentation_en_inferencia": false
+  },
+  "versiones": {
+    "torch": "2.11.0+cu130",
+    "torchvision": "0.26.0+cu130"
+  },
+  "entrenamiento": {
+    "mejor_epoca": 13,
+    "f1_macro_val": 0.95,
+    "optimizer": "AdamW lr=1e-4 wd=1e-4",
+    "loss": "CrossEntropy con pesos de clase",
+    "seed": 42
+  },
+  "test": {
+    "accuracy": 0.947,
+    "balanced_accuracy": 0.956,
+    "f1_macro": 0.959,
+    "graves_a_leves": "7/226"
+  }
+}

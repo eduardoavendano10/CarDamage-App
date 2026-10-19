@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>cardamage.ia · Presentación para el profesor</title>
+<style>
+:root{--ink:#28211e;--paper:#fbf4e9;--red:#e34c3c;--yellow:#ffd457;--blue:#8fd0e8;--white:#fffdfa;--muted:#625b51;--shadow:5px 5px 0 var(--ink)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:"Trebuchet MS",Verdana,system-ui,sans-serif;line-height:1.5}
+a{color:#9c2b1f}a:focus-visible{outline:3px solid #1576ab;outline-offset:3px}
+.wrap{max-width:1080px;margin:0 auto;padding:22px 22px 64px}
+.hero{background:var(--red);color:white;border:3px solid var(--ink);border-radius:22px;box-shadow:8px 8px 0 var(--ink);padding:32px 38px;margin-bottom:28px}
+.hero .eyebrow{display:inline-block;border:2px solid var(--ink);border-radius:9px;background:var(--yellow);color:var(--ink);padding:5px 12px;font-size:.79rem;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+h1{font-size:clamp(3rem,8vw,5.4rem);line-height:1.02;letter-spacing:-.065em;margin:15px 0 8px;text-shadow:4px 4px 0 var(--ink)}h1 span{color:var(--yellow)}
+.hero p{max-width:730px;font-size:1.12rem;font-weight:700;margin:0}
+.nav{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 28px}.nav a{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:11px;padding:9px 12px;color:var(--ink);font-size:.88rem;font-weight:900;background:var(--yellow);text-decoration:none}.nav a:nth-child(even){background:var(--blue)}.nav a:hover{transform:translate(-1px,-1px)}
+section{scroll-margin-top:16px;background:var(--white);border:3px solid var(--ink);border-radius:20px;box-shadow:var(--shadow);padding:24px 28px;margin-bottom:22px}
+h2{display:flex;align-items:center;gap:13px;font-size:1.35rem;line-height:1.3;margin:0 0 14px}h2 .n{background:var(--yellow);border:2px solid var(--ink);border-radius:8px;box-shadow:3px 3px 0 var(--ink);font-size:1.02rem;padding:5px 9px;min-width:39px;text-align:center}h3{font-size:1rem;margin:12px 0 6px}
+p{margin:9px 0}p.sub{font-size:.92rem;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:18px 0 5px}.kpi{border:2px solid var(--ink);border-radius:13px;background:#fff5dc;padding:16px}.kpi b{display:block;font-size:clamp(1.45rem,3vw,2.1rem);line-height:1.1}.kpi small{display:block;font-size:.79rem;color:#665e54;font-weight:700;margin-top:6px}
+.split{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.light{background:#fff5de;border-radius:12px;padding:13px 15px}.light strong{display:block;margin-bottom:4px}.source{margin:8px 0;padding-left:22px}.source li{margin-bottom:4px}
+.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;margin-top:13px;font-size:.95rem}th,td{padding:11px 12px;text-align:left;border-bottom:1px solid #e5d8c5}th{background:#ffefce}td:not(:first-child),th:not(:first-child){text-align:right;white-space:nowrap}td.best{font-weight:900;color:#a02d20}tr:last-child td{border:0}
+.flow{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.flow span{background:#e8f4f8;border:2px solid var(--ink);border-radius:10px;padding:10px 12px;font-weight:800;font-size:.87rem}.flow i{font-style:normal;font-weight:900;align-self:center}
+.cta{display:inline-flex;align-items:center;gap:8px;background:var(--yellow);border:2px solid var(--ink);border-radius:11px;box-shadow:3px 3px 0 var(--ink);padding:10px 14px;color:var(--ink);font-weight:900;text-decoration:none;margin-top:8px}.cta.blue{background:var(--blue)}.warn{border-left:4px solid #cf4b3c;padding:8px 12px;color:#5e5147;background:#fff6eb;margin-top:14px;font-size:.88rem}
+.members{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.member{padding:12px;background:#fff4dc;border-radius:12px;border:1px solid #e1cfb5}.member strong{display:block}.member span{font-size:.86rem;color:#695d52}
+.footer{text-align:center;font-size:.77rem;color:#71665a;padding:14px 0}
+@media(max-width:760px){.wrap{padding:12px 12px 38px}.hero{padding:24px 20px}section{padding:18px 16px}.split,.members{grid-template-columns:1fr}.kpis{grid-template-columns:1fr}.nav a{flex:1 1 auto;text-align:center}th,td{padding:9px 7px;font-size:.86rem}}
+@media print{body{background:white}.wrap{max-width:none;padding:0}.hero,section{box-shadow:none;break-inside:avoid}.nav{display:none}.hero{color:white;print-color-adjust:exact;-webkit-print-color-adjust:exact}a{text-decoration:none}}
+</style>
+</head>
+<body><div class="wrap">
+<header class="hero">
+  <span class="eyebrow">Presentación académica · Octubre 2026</span>
+  <h1>cardamage<span>.ia</span></h1>
+  <p>Una fotografía cercana, un daño clasificado y una recomendación de prevención.</p>
+</header>
+<nav class="nav" aria-label="Índice de la presentación">
+  <a href="#resumen">1. Resumen</a><a href="#datos">2. Datos y fuentes</a><a href="#metodo">3. Metodología</a><a href="#resultados">4. Resultados</a><a href="#demo">5. Demostración</a><a href="#equipo">6. Evidencia y equipo</a>
+</nav>
+<section id="resumen"><h2><span class="n">01</span> Resumen del trabajo</h2>
+  <p><strong>Problema:</strong> la clasificación inicial de daños vehiculares requiere inspección visual y puede ser inconsistente. Subestimar un daño relevante para la seguridad tiene consecuencias.</p>
+  <p><strong>Solución:</strong> desarrollamos una aplicación que clasifica una <strong>foto cercana de la zona dañada</strong> en una de seis clases y genera una recomendación orientativa mediante Gemini.</p>
+  <div class="kpis"><div class="kpi"><b>6</b><small>Tipos de daños</small></div><div class="kpi"><b>94,7 %</b><small>Accuracy de EfficientNet en test</small></div><div class="kpi"><b>3,1 %</b><small>Daños graves clasificados como leves</small></div></div>
+</section>
+<section id="datos"><h2><span class="n">02</span> Datos y sus fuentes</h2>
+<div class="split"><div><p><strong>Dataset:</strong> CarDD (2023), imágenes de daños de vehículos anotadas con cajas, en formato COCO.</p>
+<p>Transformamos las anotaciones en recortes por daño, con 10 % de margen. Se descartaron cajas demasiado pequeñas (lado menor de 32 px) y se mantuvieron separadas las fotos originales entre entrenamiento, validación y prueba.</p></div>
+<div class="light"><strong>8.303 recortes finales</strong><div>5.878 entrenamiento<br>1.667 validación<br>758 prueba</div><p class="sub">Grieta · abolladura · vidrio roto · foco dañado · rayadura · neumático desinflado</p></div></div>
+<p class="sub"><strong>Fuente y documentación:</strong></p>
+<ul class="source"><li><a href="https://cardd-ustc.github.io/" target="_blank" rel="noopener noreferrer">Dataset CarDD — sitio de los autores</a></li><li><a href="https://huggingface.co/openai/clip-vit-base-patch32" target="_blank" rel="noopener noreferrer">CLIP preentrenado — línea base</a></li><li><a href="https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.efficientnet_b0.html" target="_blank" rel="noopener noreferrer">EfficientNet-B0 — torchvision</a></li></ul>
+</section>
+<section id="metodo"><h2><span class="n">03</span> ¿Cómo funciona?</h2>
+<div class="flow" aria-label="Flujo de clasificación"><span>Fotografía cercana</span><i>→</i><span>EfficientNet-B0</span><i>→</i><span>Clase + Softmax</span><i>→</i><span>Gemini</span><i>→</i><span>Acción preventiva</span></div>
+<p>Primero evaluamos <strong>CLIP zero-shot</strong>, sin entrenarlo con CarDD. Luego ajustamos <strong>EfficientNet-B0</strong> (PyTorch/torchvision) sobre los recortes y elegimos el checkpoint por F1 macro en validación. La app usa <strong>Gradio</strong> para mostrar resultados y <strong>Gemini</strong> para redactar recomendaciones.</p>
+<p class="sub">Gemini no observa la fotografía directamente: recibe la clasificación y puntuaciones que entrega EfficientNet.</p>
+</section>
+<section id="resultados"><h2><span class="n">04</span> Resultados comparados</h2>
+<p>Ambos modelos fueron evaluados sobre los mismos <strong>758 recortes</strong> del conjunto de prueba.</p>
+<div class="table-wrap"><table><thead><tr><th>Métrica</th><th>CLIP zero-shot</th><th>EfficientNet-B0</th></tr></thead><tbody>
+<tr><td>Accuracy</td><td>53,0 %</td><td class="best">94,7 %</td></tr>
+<tr><td>Accuracy balanceada</td><td>73,5 %</td><td class="best">95,6 %</td></tr>
+<tr><td>F1 macro</td><td>61,0 %</td><td class="best">95,9 %</td></tr>
+<tr><td>Graves → leves</td><td>14 / 226 (6,2 %)</td><td class="best">7 / 226 (3,1 %)</td></tr>
+</tbody></table></div>
+<p class="sub">«Graves → leves»: grieta, vidrio roto, foco roto o neumático desinflado identificados como rayadura o abolladura. Es una métrica definida por el equipo para analizar errores.</p>
+</section>
+<section id="demo"><h2><span class="n">05</span> Demostración en vivo</h2>
+<p><strong>En Windows:</strong> abre <code>ABRIR_CARDAMAGE.bat</code> y elige <strong>«Abrir aplicación»</strong>. El navegador mostrará cardamage.ia.</p>
+<p>Selecciona una fotografía de ejemplo → pulsa <strong>Analizar daño</strong> → observa la clase, la puntuación Softmax y el consejo preventivo.</p>
+<a class="cta" href="http://127.0.0.1:7860" target="_blank" rel="noopener noreferrer">↗ Abrir app local (si el servidor está iniciado)</a>
+<div class="warn">La clasificación real requiere <code>model/model.pt</code> en la carpeta del proyecto. Gemini requiere Internet y una clave propia; la clave personal del desarrollador no se entrega.</div>
+</section>
+<section id="equipo"><h2><span class="n">06</span> Evidencias y equipo</h2>
+<div class="members"><div class="member"><strong>Eduardo Avendaño</strong><span>Dataset y evaluación de CLIP</span></div><div class="member"><strong>Martín Rentería</strong><span>Entrenamiento y validación de EfficientNet</span></div><div class="member"><strong>Jorge Moscoso</strong><span>Interfaz, inferencia y Gemini</span></div></div>
+<p>Notebooks: <code>notebooks/Parte_Edu_C1_IA.ipynb</code> y <code>notebooks/entrenamiento_efficientnet.ipynb</code>. La implementación web está en <code>app.py</code>, <code>inferencia.py</code> y <code>recomendaciones.py</code>.</p>
+<a class="cta blue" href="https://github.com/eduardoavendano10/CarDamage-App/tree/jorge-app" target="_blank" rel="noopener noreferrer">↗ Ver código en GitHub (jorge-app)</a>
+<div class="warn"><strong>Alcance:</strong> clasifica recortes, no detecta daños en una fotografía completa. No existe clase «sin daño». Softmax no garantiza acierto; la IA no sustituye una inspección técnica.</div>
+</section>
+<div class="footer">cardamage.ia · Presentación para evaluación académica · Las métricas proceden de los notebooks del equipo</div>
+</div></body></html>
