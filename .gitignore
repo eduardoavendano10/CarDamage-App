@@ -228,3 +228,10 @@ dataset/
 CarDD*/
 recortes/
 *.zip
+
+# Clave privada de Gemini
+/clave_local.py
+
+# Pesos entrenados de EfficientNet
+/model/*.pt
+/model/*.pth

@@ -1,10 +1,12 @@
+"""cardamage.ia — aplicación Gradio de clasificación de daños vehiculares.
 
-# ==========================================================
-# CarDamage AI - Version 1.5
-# Gradio + EfficientNet-B0 + Gemini
-# ==========================================================
+Interfaz cartoon retro compacta. Mantiene inferencia.py (EfficientNet-B0)
+y recomendaciones.py (Gemini). No necesita un archivo ui.html.
+"""
 
 from functools import lru_cache
+from html import escape
+import logging
 from pathlib import Path
 
 import gradio as gr
@@ -13,469 +15,359 @@ from inferencia import cargar_modelo, predecir_imagen
 from recomendaciones import generar_recomendacion
 
 
-# ==========================================================
-# 1. CONFIGURACION
-# ==========================================================
-
-VERSION = "1.5"
-
 BASE_DIR = Path(__file__).resolve().parent
+RUTA_PESOS = BASE_DIR / "model" / "model.pt"
+RUTA_CLASES = BASE_DIR / "model" / "classes.json"
 
-# Ruta acordada para recibir el modelo de Martin.
-CARPETA_MODELO = BASE_DIR / "model"
-
-RUTA_PESOS = CARPETA_MODELO / "model.pt"
-RUTA_CLASES = CARPETA_MODELO / "classes.json"
-
-
-# ==========================================================
-# 2. DATOS DE DEMOSTRACION
-# ==========================================================
-
-# Resultados ficticios.
-# No provienen del modelo entrenado.
-
-PROBABILIDADES_DEMO = {
-    "dent": 0.15,
-    "scratch": 0.55,
-    "crack": 0.10,
-    "glass shatter": 0.08,
-    "lamp broken": 0.07,
-    "tire flat": 0.05
+ETIQUETAS = {
+    "crack": "Grieta",
+    "dent": "Abolladura",
+    "glass_shatter": "Vidrio roto",
+    "lamp_broken": "Foco dañado",
+    "scratch": "Rayadura",
+    "tire_flat": "Neumático desinflado",
 }
 
+HEADER_HTML = """
+<header class="cd-hero">
+  <div>
+    <h1>cardamage<span>.ia</span></h1>
+    <p>Una foto cercana. Seis tipos de daño. Orientación inteligente.</p>
+  </div>
+</header>
+"""
 
-def simular_prediccion(imagen):
-    """
-    Devuelve resultados ficticios para comprobar
-    el funcionamiento de la interfaz.
-    """
+# Estética caricaturesca con una sola sombra por tarjeta.
+# Sin sol, efectos de fondo, contenedores grises ni decoración repetida.
+CUSTOM_CSS = r"""
+:root {
+    --paper: #faf1e2;
+    --surface: #fffaf2;
+    --ink: #272321;
+    --red: #e44e3d;
+    --yellow: #ffd558;
+    --blue: #89cce2;
+    --muted: #655f58;
+}
+body, .gradio-container {
+    background: var(--paper) !important;
+    color: var(--ink) !important;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif !important;
+}
+.gradio-container {
+    max-width: 1160px !important;
+    padding: 18px 18px 30px !important;
+}
+.gradio-container > footer { display: none !important; }
 
-    if imagen is None:
-        return (
-            "Debes cargar una fotografia antes de analizar.",
-            "",
-            "",
-            None
-        )
+.cd-hero {
+    background: var(--red);
+    color: #fff8ef;
+    border: 3px solid var(--ink);
+    border-radius: 21px;
+    box-shadow: 6px 6px 0 var(--ink);
+    padding: 19px 27px;
+    margin: 0 6px 19px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 136px;
+}
+.cd-hero h1 {
+    color: #fff8ef !important;
+    margin: 0 0 5px !important;
+    font-size: clamp(2.7rem, 6vw, 4.8rem);
+    letter-spacing: -3px;
+    font-weight: 1000;
+    line-height: 1.05;
+    text-shadow: 4px 4px 0 var(--ink);
+}
+.cd-hero h1 span { color: var(--yellow); }
+.cd-hero p {
+    color: #fff8ef;
+    font-size: .96rem;
+    font-weight: 700;
+    margin: 0;
+}
+.cd-panel {
+    border: 3px solid var(--ink) !important;
+    background: var(--surface) !important;
+    border-radius: 20px !important;
+    box-shadow: 5px 5px 0 var(--ink) !important;
+    padding: 19px !important;
+    margin: 0 6px 10px 0 !important;
+    gap: 9px !important;
+}
+.cd-panel .block { box-shadow: none !important; }
+.cd-heading {
+    display: inline-block;
+    background: var(--yellow);
+    border: 2px solid var(--ink);
+    border-radius: 9px;
+    box-shadow: 3px 3px 0 var(--ink);
+    padding: 5px 11px;
+    font-size: .9rem;
+    font-weight: 1000;
+    color: var(--ink);
+    margin-bottom: 8px;
+}
+.cd-heading.blue { background: var(--blue); }
+.cd-helper { color: var(--muted); font-size: .87rem; margin: 0 0 8px; }
+#cd-upload {
+    background: #fff4df !important;
+    border: 2px dashed #8d775d !important;
+    border-radius: 14px !important;
+}
+#cd-submit, #cd-reset {
+    border: 3px solid var(--ink) !important;
+    border-radius: 12px !important;
+    box-shadow: 3px 3px 0 var(--ink) !important;
+    font-weight: 900 !important;
+    min-height: 48px;
+}
+#cd-submit { background: var(--red) !important; color: white !important; }
+#cd-reset { background: var(--yellow) !important; color: var(--ink) !important; }
+#cd-submit:hover, #cd-reset:hover { transform: translate(-1px, -1px); }
+.cd-state {
+    display: inline-flex;
+    gap: 7px;
+    align-items: center;
+    background: var(--yellow);
+    border: 2px solid var(--ink);
+    border-radius: 30px;
+    padding: 5px 12px;
+    color: var(--ink);
+    font-size: .82rem;
+    font-weight: 900;
+}
+.cd-state.ok { background: #bfe6b7; }
+.cd-state.error { background: #ffb9ad; }
+.cd-result {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 13px;
+    margin-top: 16px;
+}
+.cd-result-item {
+    border: 2px solid #e9ddcd;
+    background: #fffcf7;
+    border-radius: 12px;
+    padding: 14px;
+    min-height: 104px;
+}
+.cd-result-item small {
+    font-size: .79rem;
+    color: var(--muted);
+    display: block;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.cd-result-item strong {
+    color: var(--ink);
+    font-size: clamp(1.2rem, 2.3vw, 1.8rem);
+    overflow-wrap: anywhere;
+    line-height: 1.2;
+}
+.cd-result-item strong.cd-accent { color: #b43b2d; }
+.cd-inline-note {
+    color: var(--muted);
+    margin-top: 11px;
+    font-size: .82rem;
+    line-height: 1.5;
+}
+.cd-ai { padding-top: 2px; }
+.cd-ai p { line-height: 1.6; }
+.cd-mini-title {
+    margin: 13px 0 9px;
+    font-weight: 900;
+    font-size: .85rem;
+    color: var(--ink);
+}
+.cd-disclaimer {
+    margin: 12px 4px 0;
+    color: var(--muted);
+    font-size: .76rem;
+    line-height: 1.55;
+    text-align: center;
+}
+@media (max-width: 760px) {
+    .gradio-container { padding: 12px 10px 20px !important; }
+    .cd-hero { padding: 19px 16px; min-height: auto; }
+    .cd-hero h1 { letter-spacing: -2px; }
+    .cd-panel { padding: 12px !important; }
+    .cd-result { gap: 7px; }
+    .cd-result-item { padding: 10px; min-height: 94px; }
+}
+"""
 
-    probabilidades = PROBABILIDADES_DEMO.copy()
 
-    clase = max(
-        probabilidades,
-        key=probabilidades.get
-    )
-
-    confianza = probabilidades[clase]
-
-    return (
-        "SIMULACION: analisis completado. "
-        "Los resultados son ficticios.",
-        clase,
-        f"{confianza:.1%}",
-        probabilidades
-    )
-
-
-# ==========================================================
-# 3. VERIFICACION DEL MODELO
-# ==========================================================
-
-def verificar_archivos_modelo():
-    """
-    Determina si existe el modelo entrenado.
-
-    Posibles resultados:
-    - simulacion
-    - incompleto
-    - disponible
-    """
-
-    tiene_pesos = RUTA_PESOS.is_file()
-    tiene_clases = RUTA_CLASES.is_file()
-
-    if tiene_pesos and tiene_clases:
-        return "disponible"
-
-    if tiene_pesos or tiene_clases:
+def estado_modelo():
+    """No presentar una simulación si hay una instalación incompleta."""
+    pesos = RUTA_PESOS.is_file()
+    clases = RUTA_CLASES.is_file()
+    if pesos and clases:
+        return "real"
+    if pesos or clases:
         return "incompleto"
+    return "demo"
 
-    return "simulacion"
-
-
-# ==========================================================
-# 4. CARGA DE EFFICIENTNET-B0
-# ==========================================================
 
 @lru_cache(maxsize=1)
-def obtener_modelo_real():
-    """
-    Carga el modelo una sola vez.
-
-    Cuando se reemplacen los pesos,
-    se debe reiniciar Gradio.
-    """
-
-    return cargar_modelo(
-        ruta_pesos=RUTA_PESOS,
-        ruta_clases=RUTA_CLASES
-    )
+def obtener_modelo():
+    """Si se reemplaza model.pt, reiniciar la aplicación."""
+    return cargar_modelo(ruta_pesos=RUTA_PESOS, ruta_clases=RUTA_CLASES)
 
 
-# ==========================================================
-# 5. CLASIFICACION DE LA IMAGEN
-# ==========================================================
-
-def analizar_fotografia(imagen):
-    """
-    Ejecuta simulacion o inferencia real.
-
-    Devuelve cinco resultados:
-    1. Estado
-    2. Clase
-    3. Confianza
-    4. Puntuaciones
-    5. Informacion del modo
+def tarjeta_resultado(estado, clase="—", puntuacion="—", nota="", tipo="pending"):
+    """Construye una salida compacta y escapa datos del modelo."""
+    clase, puntuacion, estado, nota = [escape(str(v)) for v in (clase, puntuacion, estado, nota)]
+    clase_css = "cd-accent" if tipo == "ok" else ""
+    return f"""
+    <div class="cd-output">
+      <span class="cd-state {tipo}">{estado}</span>
+      <div class="cd-result">
+        <div class="cd-result-item">
+          <small>Tipo de daño</small>
+          <strong class="{clase_css}">{clase}</strong>
+        </div>
+        <div class="cd-result-item">
+          <small>Puntuación Softmax</small>
+          <strong>{puntuacion}</strong>
+        </div>
+      </div>
+      {'<p class="cd-inline-note">' + nota + '</p>' if nota else ''}
+    </div>
     """
 
+
+RESULTADO_INICIAL = tarjeta_resultado("En espera")
+INFORME_INICIAL = "Selecciona una fotografía y presiona **Analizar daño**."
+
+
+def analizar(imagen):
+    """Devuelve (tarjeta de resultado, orientación de IA)."""
     if imagen is None:
+        return (tarjeta_resultado("Falta fotografía", nota="Carga una imagen para continuar."), INFORME_INICIAL)
+
+    modo = estado_modelo()
+    if modo == "demo":
         return (
-            "Debes cargar una fotografia antes de analizar.",
-            "",
-            "",
-            None,
-            "**Estado:** esperando una fotografia."
+            tarjeta_resultado(
+                "Sin modelo entrenado",
+                clase="Pendiente",
+                nota="Demostración de interfaz: no se ha clasificado esta fotografía.",
+            ),
+            "La interfaz funciona. **La clasificación real y Gemini estarán disponibles "
+            "cuando se instalen los archivos del modelo de Martín.**",
         )
-
-    modo = verificar_archivos_modelo()
-
-    # ------------------------------------------------------
-    # SIMULACION
-    # ------------------------------------------------------
-
-    if modo == "simulacion":
-
-        estado, clase, confianza, probabilidades = (
-            simular_prediccion(imagen)
-        )
-
-        return (
-            estado,
-            clase,
-            confianza,
-            probabilidades,
-            "**Modo activo: SIMULACION.** "
-            "Las puntuaciones son ficticias "
-            "y no dependen de la fotografia."
-        )
-
-    # ------------------------------------------------------
-    # ARCHIVOS INCOMPLETOS
-    # ------------------------------------------------------
 
     if modo == "incompleto":
         return (
-            "ERROR: instalacion incompleta del modelo.",
-            "",
-            "",
-            None,
-            "**Modelo incompleto:** deben existir "
-            "model/model.pt y model/classes.json."
+            tarjeta_resultado(
+                "Modelo incompleto",
+                clase="No disponible",
+                nota="Se necesitan model/model.pt y model/classes.json.",
+                tipo="error",
+            ),
+            "No se ejecutó ninguna clasificación ni se consultó a Gemini.",
         )
-
-    # ------------------------------------------------------
-    # INFERENCIA EFFICIENTNET-B0
-    # ------------------------------------------------------
 
     try:
-
-        modelo, clases = obtener_modelo_real()
-
-        resultado = predecir_imagen(
-            imagen,
-            modelo,
-            clases
-        )
-
+        modelo, clases = obtener_modelo()
+        resultado = predecir_imagen(imagen, modelo, clases)
+        clase = resultado["clase"]
+        score = float(resultado["confianza"])
+        puntuaciones = resultado["probabilidades"]
+    except Exception:
+        logging.exception("Falló la inferencia EfficientNet-B0")
         return (
-            "Analisis completado con EfficientNet-B0 "
-            "y pesos cargados.",
-            resultado["clase"],
-            f'{resultado["confianza"]:.1%}',
-            resultado["probabilidades"],
-            "**Modo activo: EFFICIENTNET-B0.** "
-            "Las puntuaciones Softmax no equivalen "
-            "a la precision global del modelo."
+            tarjeta_resultado(
+                "Error de inferencia",
+                clase="No disponible",
+                nota="Revisa la terminal. No se generaron datos simulados.",
+                tipo="error",
+            ),
+            "No se consultó a Gemini porque falló la clasificación.",
         )
 
-    except Exception as error:
-
-        print("ERROR DE INFERENCIA:", repr(error))
-
-        return (
-            "ERROR: no se pudo ejecutar EfficientNet-B0.",
-            "",
-            "",
-            None,
-            "**Error del modelo:** revisa la terminal. "
-            "No se sustituyen errores por simulaciones."
+    try:
+        recomendacion = generar_recomendacion(
+            clase=clase,
+            confianza=score,
+            probabilidades=puntuaciones,
+            modo_prueba=False,
         )
-
-
-# ==========================================================
-# 6. CLASIFICACION + RECOMENDACION CON GEMINI
-# ==========================================================
-
-def analizar_con_recomendacion(imagen):
-    """
-    Combina los resultados del clasificador
-    con una recomendacion orientativa.
-
-    Gemini solamente se consulta cuando existe
-    una clasificacion obtenida del modelo cargado.
-    """
-
-    resultado = analizar_fotografia(imagen)
-
-    estado, clase, confianza, probabilidades, informacion = (
-        resultado
-    )
-
-    # ------------------------------------------------------
-    # SIN IMAGEN
-    # ------------------------------------------------------
-
-    if imagen is None:
-
+    except Exception:
+        logging.exception("Falló la recomendación de Gemini")
         recomendacion = (
-            "Carga una fotografia para iniciar el analisis."
+            "Clasificación completada, pero no se pudo generar la orientación. "
+            "Comprueba `GEMINI_API_KEY` y revisa la terminal."
         )
 
-    # ------------------------------------------------------
-    # MODO SIMULACION
-    # ------------------------------------------------------
+    return (
+        tarjeta_resultado(
+            "Modelo activo",
+            clase=ETIQUETAS.get(clase, clase),
+            puntuacion=f"{score:.1%}",
+            nota="La puntuación Softmax no equivale a precisión global.",
+            tipo="ok",
+        ),
+        recomendacion,
+    )
 
-    elif verificar_archivos_modelo() == "simulacion":
 
-        recomendacion = (
-            "**MODO SIMULACION:** "
-            "La fotografia aun no ha sido clasificada "
-            "por un modelo entrenado. "
-            "Los resultados son ficticios. "
-            "No se consulto a Gemini."
-        )
+def limpiar():
+    return None, RESULTADO_INICIAL, INFORME_INICIAL
 
-    # ------------------------------------------------------
-    # ERROR DE CLASIFICACION
-    # ------------------------------------------------------
 
-    elif not clase or not isinstance(probabilidades, dict):
+with gr.Blocks(title="cardamage.ia") as app:
+    gr.HTML(HEADER_HTML)
 
-        recomendacion = (
-            "No es posible generar una recomendacion "
-            "porque no se obtuvo una clasificacion valida."
-        )
-
-    # ------------------------------------------------------
-    # RESULTADO DEL MODELO ENTRENADO
-    # ------------------------------------------------------
-
-    else:
-
-        try:
-
-            confianza_numerica = probabilidades[clase]
-
-            recomendacion = generar_recomendacion(
-                clase=clase,
-                confianza=confianza_numerica,
-                probabilidades=probabilidades,
-                modo_prueba=False
+    with gr.Row(equal_height=False):
+        with gr.Column(scale=6, min_width=320, elem_classes=["cd-panel"]):
+            gr.HTML('<div class="cd-heading">01 / Fotografía</div>')
+            gr.HTML('<p class="cd-helper">Carga un acercamiento de la zona dañada.</p>')
+            imagen = gr.Image(
+                label="Fotografía del daño",
+                sources=["upload"],
+                type="pil",
+                height=300,
+                elem_id="cd-upload",
             )
+            with gr.Row():
+                boton_analizar = gr.Button("⚡ Analizar daño", variant="primary", elem_id="cd-submit")
+                boton_limpiar = gr.Button("↺ Limpiar", variant="secondary", elem_id="cd-reset")
 
-        except Exception as error:
+            rutas_ejemplos = [
+                BASE_DIR / "ejemplos" / "dent.jpg.jpg",
+                BASE_DIR / "ejemplos" / "glass_shatter.jpg.jpg",
+                BASE_DIR / "ejemplos" / "lamp_broken.jpg.jpg",
+                BASE_DIR / "ejemplos" / "tire_flat.jpg.jpg",
+            ]
+            rutas_ejemplos = [str(r) for r in rutas_ejemplos if r.is_file()]
+            if rutas_ejemplos:
+                gr.Examples(
+                    examples=[[ruta] for ruta in rutas_ejemplos],
+                    inputs=[imagen],
+                    label="Ejemplos",
+                )
 
-            print(
-                "ERROR EN RECOMENDACIONES:",
-                repr(error)
-            )
+        with gr.Column(scale=5, min_width=320, elem_classes=["cd-panel"]):
+            gr.HTML('<div class="cd-heading blue">02 / Resultado</div>')
+            resultado = gr.HTML(value=RESULTADO_INICIAL)
+            gr.HTML('<div class="cd-mini-title">Orientación inteligente</div>')
+            informe = gr.Markdown(INFORME_INICIAL, elem_classes=["cd-ai"])
 
-            recomendacion = (
-                "No fue posible obtener una recomendacion "
-                "de IA en este momento. "
-                "Revisa la conexion o intenta nuevamente."
-            )
-
-    # Cinco resultados anteriores + recomendacion.
-    return (*resultado, recomendacion)
-
-
-# ==========================================================
-# 7. INTERFAZ GRADIO
-# ==========================================================
-
-with gr.Blocks(title="CarDamage AI") as app:
-
-    # ------------------------------------------------------
-    # ENCABEZADO
-    # ------------------------------------------------------
-
-    gr.Markdown("# CarDamage AI")
-
-    gr.Markdown(
-        "Sistema de clasificacion de danos "
-        "visibles en vehiculos."
+    gr.HTML(
+        '<div class="cd-disclaimer">Prototipo académico. Clasifica recortes de daños visibles; '
+        'no localiza daños en imágenes completas ni sustituye una inspección profesional. '
+        'No reconoce vehículos sin daños.</div>'
     )
 
-    gr.Markdown(
-        f"**Version {VERSION} — "
-        "EfficientNet-B0 + Gemini + Gradio**"
-    )
+    boton_analizar.click(fn=analizar, inputs=[imagen], outputs=[resultado, informe])
+    boton_limpiar.click(fn=limpiar, inputs=[], outputs=[imagen, resultado, informe])
 
-    gr.Markdown(
-        "La aplicacion trabaja en simulacion mientras "
-        "no existan los archivos del modelo entrenado. "
-        "El estado de cada analisis indica el modo utilizado."
-    )
-
-    # ------------------------------------------------------
-    # SECCION 1 - FOTOGRAFIA
-    # ------------------------------------------------------
-
-    gr.Markdown("### 1. Cargar fotografia")
-
-    imagen = gr.Image(
-        label="Fotografia del dano",
-        type="pil",
-        sources=["upload"],
-        height=350
-    )
-
-    gr.Markdown(
-        "Sube una fotografia cercana de una zona "
-        "con dano visible. "
-        "El sistema clasifica la region danada; "
-        "no localiza automaticamente danos "
-        "en una fotografia completa del vehiculo."
-    )
-
-    # ------------------------------------------------------
-    # SECCION 2 - ANALISIS
-    # ------------------------------------------------------
-
-    gr.Markdown("### 2. Analizar fotografia")
-
-    boton_analizar = gr.Button(
-        "Analizar dano",
-        variant="primary"
-    )
-
-    estado = gr.Textbox(
-        label="Estado del analisis",
-        interactive=False
-    )
-
-    # ------------------------------------------------------
-    # SECCION 3 - CLASIFICACION
-    # ------------------------------------------------------
-
-    gr.Markdown("### 3. Resultado de clasificacion")
-
-    informacion_modo = gr.Markdown(
-        "**Estado:** esperando una fotografia."
-    )
-
-    with gr.Row():
-
-        clase_resultado = gr.Textbox(
-            label="Clase predicha",
-            interactive=False
-        )
-
-        confianza_resultado = gr.Textbox(
-            label="Confianza de la prediccion",
-            interactive=False
-        )
-
-    # ------------------------------------------------------
-    # SECCION 4 - PUNTUACIONES
-    # ------------------------------------------------------
-
-    gr.Markdown(
-        "### 4. Puntuaciones por categoria"
-    )
-
-    probabilidades_resultado = gr.Label(
-        label="Distribucion de puntuaciones",
-        num_top_classes=6
-    )
-
-    # ------------------------------------------------------
-    # SECCION 5 - RECOMENDACIONES
-    # ------------------------------------------------------
-
-    gr.Markdown(
-        "### 5. Recomendacion orientativa con IA"
-    )
-
-    recomendacion_resultado = gr.Markdown(
-        "Carga una fotografia y ejecuta el analisis "
-        "para consultar una recomendacion orientativa."
-    )
-
-    # ------------------------------------------------------
-    # CONEXION DEL BOTON
-    # ------------------------------------------------------
-
-    boton_analizar.click(
-        fn=analizar_con_recomendacion,
-        inputs=[imagen],
-        outputs=[
-            estado,
-            clase_resultado,
-            confianza_resultado,
-            probabilidades_resultado,
-            informacion_modo,
-            recomendacion_resultado
-        ]
-    )
-
-    # ------------------------------------------------------
-    # INFORMACION DEL PROYECTO
-    # ------------------------------------------------------
-
-    gr.Markdown("---")
-
-    gr.Markdown(
-        "### Informacion del proyecto"
-    )
-
-    gr.Markdown(
-        "**Proyecto:** CarDamage AI\n\n"
-        "**Dataset:** CarDD - Car Damage Detection\n\n"
-        "**Modelo principal:** EfficientNet-B0 "
-        "(PyTorch / Torchvision)\n\n"
-        "**IA generativa:** Google Gemini, "
-        "para recomendaciones orientativas\n\n"
-        "**Interfaz:** Gradio\n\n"
-        "**Categorias iniciales:** dent, scratch, crack, "
-        "glass shatter, lamp broken y tire flat.\n\n"
-        "**Clases del modelo:** se obtienen desde "
-        "classes.json cuando existen pesos disponibles.\n\n"
-        "**Limitacion:** requiere una fotografia de "
-        "una region con dano visible. "
-        "No existe una clase sin dano.\n\n"
-        "**Interpretacion:** las puntuaciones Softmax "
-        "no garantizan una prediccion correcta ni "
-        "representan la precision global en Test.\n\n"
-        "**Advertencia:** herramienta academica, "
-        "no diagnostico mecanico definitivo."
-    )
-
-
-# ==========================================================
-# 8. EJECUTAR
-# ==========================================================
 
 if __name__ == "__main__":
-    app.launch()
+    # En Gradio 6 el CSS personalizado se entrega al lanzar la aplicación.
+    app.launch(inbrowser=True, share=False, footer_links=[], css=CUSTOM_CSS)
